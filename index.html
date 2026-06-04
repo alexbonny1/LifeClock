@@ -517,16 +517,13 @@
   }
 
   function setClock(hh, mm, ss) {
-    const h1 = String(hh)[0] ?? '0', h2 = String(pad2(hh))[1];
-    const m1 = String(pad2(mm))[0], m2 = String(pad2(mm))[1];
-    const s1 = String(pad2(ss))[0], s2 = String(pad2(ss))[1];
-
-    updateDigit('h1', h1);
-    updateDigit('h2', h2);
-    updateDigit('m1', m1);
-    updateDigit('m2', m2);
-    updateDigit('s1', s1);
-    updateDigit('s2', s2);
+    const h = pad2(hh), m = pad2(mm), s = pad2(ss);
+    updateDigit('h1', h[0]);
+    updateDigit('h2', h[1]);
+    updateDigit('m1', m[0]);
+    updateDigit('m2', m[1]);
+    updateDigit('s1', s[0]);
+    updateDigit('s2', s[1]);
   }
 
   /* ── Format date for datetime-local input (local time) ── */
