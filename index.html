@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Life Clock</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a26;
+      --border: #2a2a3d;
+      --accent: #6c63ff;
+      --accent2: #a78bfa;
+      --accent-glow: rgba(108, 99, 255, 0.35);
+      --text: #e8e8f0;
+      --text-muted: #7070a0;
+      --text-dim: #4a4a6a;
+      --digit-bg: #0e0e18;
+      --green: #34d399;
+      --red: #f87171;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      overflow-x: hidden;
+    }
+
+    /* ── Background subtle grid ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 60px 60px;
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 760px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
+      font-weight: 300;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    header h1 span {
+      color: var(--accent2);
+      font-weight: 600;
+    }
+
+    header p {
+      margin-top: 0.4rem;
+      font-size: 0.8rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ── Input card ── */
+    .input-card {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.4rem 1.8rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .input-card label {
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      flex: 0 0 auto;
+    }
+
+    .input-card input[type="datetime-local"] {
+      flex: 1 1 220px;
+      background: var(--digit-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 1rem;
+      padding: 0.55rem 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+      color-scheme: dark;
+    }
+
+    .input-card input[type="datetime-local"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .btn-clear {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      padding: 0.55rem 1rem;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-clear:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* ── Clock display ── */
+    .clock-wrapper {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.4rem;
+    }
+
+    .clock-face {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+    }
+
+    .digit-group {
+      display: flex;
+      gap: 0.18rem;
+    }
+
+    .digit {
+      background: var(--digit-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: clamp(52px, 12vw, 90px);
+      height: clamp(72px, 17vw, 124px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(2.2rem, 8vw, 5.5rem);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      color: var(--accent2);
+      text-shadow: 0 0 24px var(--accent-glow);
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+
+    .digit.pulse {
+      box-shadow: 0 0 18px var(--accent-glow);
+    }
+
+    /* flip animation */
+    .digit-inner {
+      display: inline-block;
+      will-change: transform, opacity;
+    }
+
+    .digit-inner.flip-in {
+      animation: flipIn 0.22s ease-out forwards;
+    }
+
+    @keyframes flipIn {
+      from { transform: translateY(-28%) scaleY(0.6); opacity: 0; }
+      to   { transform: translateY(0)     scaleY(1);   opacity: 1; }
+    }
+
+    /* horizontal rule inside digit */
+    .digit::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      top: 50%;
+      height: 1px;
+      background: var(--border);
+      opacity: 0.5;
+    }
+
+    .separator {
+      font-size: clamp(2rem, 7vw, 5rem);
+      font-weight: 300;
+      color: var(--accent);
+      opacity: 0.7;
+      margin-bottom: 4px;
+      user-select: none;
+      animation: blink 1s step-start infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0.15; }
+    }
+
+    /* ── Progress bar ── */
+    .progress-wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 10px var(--accent-glow);
+      transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .progress-pct {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+
+    .progress-pct span {
+      color: var(--accent2);
+      font-weight: 600;
+      font-size: 0.92rem;
+    }
+
+    /* ── Stats grid ── */
+    .stats-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.9rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .stat-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .stat-value.accent {
+      color: var(--accent2);
+      text-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    /* ── Footer note ── */
+    .footer-note {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-align: center;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-dim);
+    }
+
+    .empty-state .icon {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+      opacity: 0.4;
+    }
+
+    .empty-state p {
+      font-size: 0.9rem;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Responsive tweaks ── */
+    @media (max-width: 480px) {
+      .input-card {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .input-card label {
+        text-align: center;
+      }
+      .btn-clear {
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <h1>Life <span>Clock</span></h1>
+    <p>La tua vita come un orologio di 24 ore · 80 anni = 24:00:00</p>
+  </header>
+
+  <!-- Birth datetime input -->
+  <div class="input-card">
+    <label for="birthInput">Data e ora di nascita</label>
+    <input type="datetime-local" id="birthInput" />
+    <button class="btn-clear" id="clearBtn">Cancella</button>
+  </div>
+
+  <!-- Clock + stats (hidden until birth date set) -->
+  <div id="clockSection" class="clock-wrapper" style="display:none;">
+
+    <!-- Digital clock -->
+    <div class="clock-face" id="clockFace" aria-live="polite" aria-label="Orario vita">
+      <!-- HH -->
+      <div class="digit-group">
+        <div class="digit" id="h1"><span class="digit-inner">0</span></div>
+        <div class="digit" id="h2"><span class="digit-inner">0</span></div>
+      </div>
+      <div class="separator">:</div>
+      <!-- MM -->
+      <div class="digit-group">
+        <div class="digit" id="m1"><span class="digit-inner">0</span></div>
+        <div class="digit" id="m2"><span class="digit-inner">0</span></div>
+      </div>
+      <div class="separator">:</div>
+      <!-- SS -->
+      <div class="digit-group">
+        <div class="digit" id="s1"><span class="digit-inner">0</span></div>
+        <div class="digit" id="s2"><span class="digit-inner">0</span></div>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-wrap">
+      <div class="progress-labels">
+        <span>Nascita</span>
+        <span>80 anni</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <div class="progress-pct">Vita trascorsa: <span id="pctText">0.000%</span></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Anni</div>
+        <div class="stat-value accent" id="statYears">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Giorni</div>
+        <div class="stat-value" id="statDays">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Ore</div>
+        <div class="stat-value" id="statHours">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Minuti</div>
+        <div class="stat-value" id="statMinutes">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Secondi</div>
+        <div class="stat-value" id="statSeconds">—</div>
+      </div>
+      <div class="stat-card" style="grid-column: span 2;">
+        <div class="stat-label">80° compleanno stimato</div>
+        <div class="stat-value" id="statEightyDate" style="font-size:0.95rem;">—</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Empty state shown when no birth date -->
+  <div id="emptyState" class="empty-state">
+    <div class="icon">⏱</div>
+    <p>Inserisci la tua data e ora di nascita per avviare il tuo Life Clock.</p>
+  </div>
+
+  <div class="footer-note">
+    80 anni = 24 ore &nbsp;·&nbsp; Aggiornamento ogni secondo &nbsp;·&nbsp; Dati salvati localmente
+  </div>
+
+</div>
+
+<script>
+  /* ── Constants ── */
+  const MS_PER_80_YEARS = 80 * 365.25 * 24 * 60 * 60 * 1000;
+  const MS_PER_DAY      = 24 * 60 * 60 * 1000;
+  const MS_PER_HOUR     = 60 * 60 * 1000;
+  const MS_PER_MINUTE   = 60 * 1000;
+  const STORAGE_KEY     = 'lifeclock_birth';
+
+  /* ── DOM refs ── */
+  const birthInput    = document.getElementById('birthInput');
+  const clearBtn      = document.getElementById('clearBtn');
+  const clockSection  = document.getElementById('clockSection');
+  const emptyState    = document.getElementById('emptyState');
+  const progressFill  = document.getElementById('progressFill');
+  const pctText       = document.getElementById('pctText');
+
+  const digitEls = {
+    h1: document.getElementById('h1'),
+    h2: document.getElementById('h2'),
+    m1: document.getElementById('m1'),
+    m2: document.getElementById('m2'),
+    s1: document.getElementById('s1'),
+    s2: document.getElementById('s2'),
+  };
+
+  const statEls = {
+    years:      document.getElementById('statYears'),
+    days:       document.getElementById('statDays'),
+    hours:      document.getElementById('statHours'),
+    minutes:    document.getElementById('statMinutes'),
+    seconds:    document.getElementById('statSeconds'),
+    eightyDate: document.getElementById('statEightyDate'),
+  };
+
+  /* ── State ── */
+  let birthMs    = null;
+  let tickTimer  = null;
+  let prevDigits = { h1:'', h2:'', m1:'', m2:'', s1:'', s2:'' };
+
+  /* ── Helpers ── */
+  function pad2(n) { return String(Math.floor(n)).padStart(2, '0'); }
+
+  function updateDigit(key, char) {
+    const el = digitEls[key];
+    if (prevDigits[key] === char) return;
+    prevDigits[key] = char;
+
+    const inner = el.querySelector('.digit-inner');
+    inner.textContent = char;
+    inner.classList.remove('flip-in');
+    void inner.offsetWidth; // reflow
+    inner.classList.add('flip-in');
+
+    /* pulse the whole digit cell */
+    el.classList.add('pulse');
+    clearTimeout(el._pulseTimer);
+    el._pulseTimer = setTimeout(() => el.classList.remove('pulse'), 300);
+  }
+
+  function setClock(hh, mm, ss) {
+    const h1 = String(hh)[0] ?? '0', h2 = String(pad2(hh))[1];
+    const m1 = String(pad2(mm))[0], m2 = String(pad2(mm))[1];
+    const s1 = String(pad2(ss))[0], s2 = String(pad2(ss))[1];
+
+    updateDigit('h1', h1);
+    updateDigit('h2', h2);
+    updateDigit('m1', m1);
+    updateDigit('m2', m2);
+    updateDigit('s1', s1);
+    updateDigit('s2', s2);
+  }
+
+  /* ── Format date for datetime-local input (local time) ── */
+  function toInputValue(date) {
+    const y  = date.getFullYear();
+    const mo = pad2(date.getMonth() + 1);
+    const d  = pad2(date.getDate());
+    const h  = pad2(date.getHours());
+    const mi = pad2(date.getMinutes());
+    return `${y}-${mo}-${d}T${h}:${mi}`;
+  }
+
+  /* ── Tick ── */
+  function tick() {
+    if (!birthMs) return;
+
+    const now     = Date.now();
+    const elapsed = now - birthMs;
+
+    /* Virtual time: proportion of 80 years mapped to 24h in ms */
+    const virtualMs = (elapsed / MS_PER_80_YEARS) * 86400000;
+
+    const totalVirtualSec = Math.floor(virtualMs / 1000);
+    const vHH = Math.floor(totalVirtualSec / 3600);
+    const vMM = Math.floor((totalVirtualSec % 3600) / 60);
+    const vSS = totalVirtualSec % 60;
+
+    setClock(vHH, vMM, vSS);
+
+    /* Progress */
+    const pct = Math.min((elapsed / MS_PER_80_YEARS) * 100, 100);
+    progressFill.style.width = pct.toFixed(4) + '%';
+    pctText.textContent = pct.toFixed(3) + '%';
+
+    /* Real age breakdown */
+    const totalSec  = Math.floor(elapsed / 1000);
+    const realYears = Math.floor(elapsed / (365.25 * MS_PER_DAY));
+    const remAfterY = elapsed - realYears * 365.25 * MS_PER_DAY;
+    const realDays  = Math.floor(remAfterY / MS_PER_DAY);
+    const remAfterD = remAfterY - realDays * MS_PER_DAY;
+    const realHours = Math.floor(remAfterD / MS_PER_HOUR);
+    const remAfterH = remAfterD - realHours * MS_PER_HOUR;
+    const realMins  = Math.floor(remAfterH / MS_PER_MINUTE);
+    const realSecs  = Math.floor((remAfterH - realMins * MS_PER_MINUTE) / 1000);
+
+    statEls.years.textContent   = realYears.toLocaleString('it-IT');
+    statEls.days.textContent    = realDays.toLocaleString('it-IT');
+    statEls.hours.textContent   = realHours.toLocaleString('it-IT');
+    statEls.minutes.textContent = realMins.toLocaleString('it-IT');
+    statEls.seconds.textContent = realSecs.toLocaleString('it-IT');
+  }
+
+  /* ── Setup ── */
+  function startClock(birthdateMs) {
+    birthMs = birthdateMs;
+
+    /* Compute 80th birthday */
+    const eightyMs   = birthdateMs + MS_PER_80_YEARS;
+    const eightyDate = new Date(eightyMs);
+    const fmt = new Intl.DateTimeFormat('it-IT', {
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+    statEls.eightyDate.textContent = fmt.format(eightyDate);
+
+    clockSection.style.display = 'flex';
+    emptyState.style.display   = 'none';
+
+    /* Reset prev digits to force re-render */
+    prevDigits = { h1:'', h2:'', m1:'', m2:'', s1:'', s2:'' };
+
+    clearInterval(tickTimer);
+    tick();
+    tickTimer = setInterval(tick, 1000);
+  }
+
+  function stopClock() {
+    birthMs = null;
+    clearInterval(tickTimer);
+    clockSection.style.display = 'none';
+    emptyState.style.display   = 'block';
+  }
+
+  /* ── Events ── */
+  birthInput.addEventListener('change', () => {
+    const val = birthInput.value;
+    if (!val) { stopClock(); localStorage.removeItem(STORAGE_KEY); return; }
+    const ms = new Date(val).getTime();
+    if (isNaN(ms)) return;
+    localStorage.setItem(STORAGE_KEY, val);
+    startClock(ms);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    birthInput.value = '';
+    localStorage.removeItem(STORAGE_KEY);
+    stopClock();
+  });
+
+  /* ── Restore from localStorage ── */
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    birthInput.value = saved;
+    const ms = new Date(saved).getTime();
+    if (!isNaN(ms)) startClock(ms);
+  }
+</script>
+</body>
+</html>
